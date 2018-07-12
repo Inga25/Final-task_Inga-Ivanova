@@ -1,0 +1,268 @@
+---
+title: "Final task_Inga Ivanova"
+data: July 12, 2018
+output: html_document
+---
+
+```{r}
+library(Ecdat)
+library(fivethirtyeight)
+library(AER)
+library(tidyverse)
+library(rio)
+library(skimr)
+library(lattice)
+library(DataExplorer)
+library(corrplot)
+library(cluster) 
+library(broom)
+library(naniar)
+library(visdat)
+library(patchwork)
+library(broom)
+library(factoextra)
+library(dendextend)
+library(corrplot)
+library(broom)
+library(skimr)
+library(GGally)
+library(sjPlot)
+library(lmtest)
+library(sjstats)
+library(sandwich)
+library(corrplot)
+
+library(sandwich)
+library(caret)
+library(FFTrees)
+library(margins)
+library(rpart.plot)
+library(plotROC)
+library(ggeffects)
+library(MLmetrics)
+library(caret)
+library(ranger)
+library(FFTrees)
+library(margins)
+library(rpart.plot)
+library(plotROC)
+library(ggeffects)
+library(MLmetrics)
+library(ranger)
+library(factoextra)
+library(elasticnet)
+library(latex2exp)
+library(distances)
+library(dplyr)
+
+```
+```{r}
+data("ChinaIncome")
+
+glimpse(ChinaIncome)
+head(ChinaIncome)
+tail(ChinaIncome)
+```
+```{r}
+mydata <- data.frame(ChinaIncome)
+  
+skim(mydata)
+
+glimpse(mydata)
+```
+```{r}
+qplot(data = mydata, x = agriculture, y = industry) + labs(x = 'Сельское хозяйство', y = 'Промышленность', title = 'ВВП по с/х и промышленности Китая')
+
+qplot(data = mydata, x = commerce, y = construction) + labs(x = 'Торговля', y = 'Строительство', title = 'ВВП по строительству и торговле Китая')
+
+qplot(data = mydata, x = transport, y = industry) + labs(x = 'Транспорт', y = 'Промышленность', title = 'ВВП по транспорту и промышленности Китая')
+
+splom(mydata, c('agriculture', 'commerce', 'construction', 'industry', 'transport'))
+
+create_report(mydata)
+
+mydata_cor <- cor(mydata)
+mydata_cor
+
+corrplot.mixed(mydata_cor)
+
+
+corrplot.mixed(mydata_cor)
+corrplot(mydata_cor)
+corrplot(mydata_cor, method = 'number')
+corrplot(mydata_cor, method = 'color')
+corrplot(mydata_cor, method = 'color', type = 'upper')
+```
+```{r}
+scale(mydata)
+mydata_stand < - scale(mydata)
+mydata_stand <- mutate_if(mydata, is.numeric, ~ as.vector(scale (.)))
+
+skim(mydata_stand)
+
+mydata_stand
+mydata
+
+k_means_mydata <- kmeans(mydata_stand, centers = 2)
+k_means_mydata
+attributes(k_means_mydata)
+
+k_means_mydata$centers
+k_means_mydata$cluster
+
+
+tidy(k_means_mydata)
+
+
+fviz_cluster(object = k_means_mydata, data = mydata_stand, ellipse.type = 'convex')
+g1 <- fviz_nbclust(mydata_stand, kmeans, method = 'wss') + labs(subtitle = 'Elbow method')
+g1
+
+g2 <- fviz_nbclust(mydata_stand, kmeans, method = 'silhouette') + labs(subtitle = 'Silhouette method')
+g2
+
+g3 <- fviz_nbclust(mydata_stand, kmeans, method = 'gap_stat') + labs(subtitle = 'Gap statistic method')
+g3
+
+(g1 + g2) / g3
+
+mydata_plus <- mutate(mydata, cluster = k_means_mydata$cluster)
+
+glimpse(mydata_plus)
+
+mydata_dist <- stats::dist(mydata_stand, method = 'euclidian')
+fviz_dist(mydata_dist) -> zzz
+
+Gap(k) = lnWSSrandom(k) - lnWSS(k)
+
+hclust(mydata_dist)
+mydata_hcl <- hcut(mydata_stand, k=2, hc_metric = 'euclidean', hc_method = 'ward.D2')
+
+fviz_dend(mydata_hcl, cex = 0.5, color_labels_by_k = TRUE)
+
+mydata_hcl <- hcut(mydata_stand, k=2, hc_metric = 'euclidean', hc_method = 'average')
+
+fviz_dend(mydata_hcl, cex = 0.5, color_labels_by_k = TRUE)
+
+mydata_pca <- prcomp(mydata_stand)
+mydata_pca
+attributes(mydata_pca)
+
+mydata_pca$x[,1]
+mydata
+
+mydata_stand
+
+
+
+skim(mydata)
+
+mydata_fct <- mydata %>% mutate_at(vars(-agriculture, -commerce, -construction, -industry, -transport), factor)
+
+glimpse(mydata_fct)
+
+model_r <- lm(data = mydata_fct, commerce ~ transport)
+summary(model_r)
+
+model_r <- lm(data = mydata_fct, transport ~ commerce)
+summary(model_r)
+
+model_r <- lm(data = mydata_fct, transport ~ commerce + agriculture + industry)
+summary(model_r)
+
+model_r <- lm(data = mydata_fct, commerce ~ transport + agriculture + industry + construction)
+summary(model_r)
+tidy(model_r)
+glance(model_r)
+coeftest(model_r, vcov. = vcovHC)
+
+lm(formula = commerce ~ transport + agriculture + industry + construction, data = mydata_fct)
+
+ggnostic(model = model_r)
+
+
+mydata
+mydata_logit <- mutate(mydata, y = as.factor(commerce > mean(commerce)))
+
+mydata_fct <- mutate_if(mydata_logit, is.character, factor)                       
+                       
+set.seed(123)
+train_rows <- createDataPartition(mydata_fct$y,p=0.7, list = FALSE)
+mydata_train <- mydata_fct[train_rows, ]
+mydata_test <- mydata_fct[-train_rows, ]
+
+
+
+mydata_lmodel_glm <- glm(data = mydata_train, y ~ agriculture + construction + industry + transport, family = binomial(link= 'logit'))
+mydata_lmodel <- train(data = mydata_train, y ~ agriculture + construction + industry + transport, family = binomial(link= 'logit'))
+
+
+summary(mydata_lmodel)
+
+mydata_pred <- predict(mydata_lmodel, newdata = mydata_test)
+head(mydata_pred)
+summary(mydata_pred)
+
+mydata_pred
+
+mydata_prob <- predict(mydata_lmodel, newdata = mydata_test, type = 'prob')
+head(mydata_prob)
+mydata_prob
+tree_model <- train(y ~ . - commerce, data = mydata_train, method = 'rpart2', na.action = na.omit)
+mydata_tree <- mutate (mydata_test, yhat = predict(tree_model,mydata_test, na.action = na.pass))
+confusionMatrix(mydata_tree$yhat, mydata_tree$y)
+
+mydata_train2 <- mutate(mydata_train, ybin = ifelse(y == 'FALSE',1,0)) %>% select(-commerce)
+
+fftree_model <- FFTrees(formula = ybin ~ ., data = mydata_train2)
+plot(fftree_model)
+
+ranger_model <- train(y ~ . - commerce, data = mydata_test, method = 'ranger', na.action =na.omit, importance = 'impurity')
+ranger_model
+ranger_model$finalModel
+ranger_import <- varImp(ranger_model)
+ranger_import
+
+mydata_ranger <- mutate (mydata_test, yhat = predict(ranger_model, mydata_test, na.action = na.pass))
+confusionMatrix(mydata_ranger$yhat, mydata_ranger$y)
+
+
+mydata_fct_rel <- mutate(mydata_fct, y = fct_relevel(y,'TRUE'))
+
+set.seed(123)
+train_rows <- createDataPartition(mydata_fct$y, p = 0.8, list = FALSE)
+mydata_train <- mydata_fct[train_rows, ]
+mydata_test <- mydata_fct[-train_rows, ]
+
+mydata
+
+
+
+mydata_lmodel <- train(data = mydata_train, y ~ agriculture + construction + industry + transport, family = binomial(link= 'logit'), method = 'glm')
+
+summary(mydata_lmodel)
+
+
+confusionMatrix(data = mydata_pred, reference = mydata_test$y)
+
+mydata_test_set <- data.frame(FALSE1 = mydata_prob[,1], 
+                              TRUE1 = mydata_prob[,2], 
+                              pred = mydata_pred, 
+                              obs = mydata_test$y)
+
+
+mydata_prob
+mydata_test
+mydata_pred
+mydata_train
+
+glimpse(mydata_test_set)
+
+
+ggplot(mydata_test_set, aes(d = obs, m = 'FALSE')) + 
+  geom_roc(n.cuts = 0) +
+  labs(title = 'Кривая ROC',
+       x = 'False positive ratio = FP / (FP + TN)',
+       y = 'True positive ratio = TP / (TP + FN)')
+
+```
